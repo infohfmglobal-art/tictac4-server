@@ -1,120 +1,143 @@
+// server.js — TicTac4 Multiplayer Backend (Render Ready)
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
+import cors from "cors";
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 
-// tiny health route
-app.get("/", (_, res) => res.send("TicTac4 server is running."));
-app.get("/health", (_, res) => res.json({ ok: true }));
+const PORT = process.env.PORT || 10000;
 
-// simple room state
-const rooms = new Map();
+// --- Health Route ---
+app.get("/health", (req, res) => {
+  res.json({ ok: true });
+});
+
+app.get("/", (req, res) => {
+  res.send("TicTac4 server is running ✅");
+});
+
+// --- Matchmaking & Game Logic ---
+let waitingPlayer = null;
+const activeRooms = new Map();
 
 io.on("connection", (socket) => {
-  socket.on("hello", ({ name }) => {
-    socket.data.name = name || "Guest";
-    socket.emit("profile", { id: socket.id, name: socket.data.name });
-  });
+  console.log(`🟢 Player connected: ${socket.id}`);
 
-  socket.on("joinQueue", ({ stake=0, bestOf=3, symbolPref="" }) => {
-    const waiting = [...rooms.values()].find(r => !r.full && r.stake===stake && r.bestOf===bestOf);
-    if (waiting) {
-      const youIdx = 1;
-      const youSym = symbolPref || (waiting.players[0].symbol === "X" ? "O" : "X");
-      const opp = waiting.players[0];
-      waiting.players.push({ id: socket.id, name: socket.data.name, symbol: youSym });
-      waiting.full = true;
+  socket.on("joinMatch", ({ preferredSymbol }) => {
+    console.log(`🎮 Player ${socket.id} wants to play as ${preferredSymbol}`);
 
-      // notify both
-      io.to(opp.id).emit("matchFound", {
-        opponent: { name: socket.data.name, symbol: youSym },
-        youIndex: 0, youSymbol: opp.symbol, bestOf, pot: stake*2
+    if (waitingPlayer && waitingPlayer.id !== socket.id) {
+      // Pair players
+      const roomId = `room_${Date.now()}`;
+      const p1 = waitingPlayer;
+      const p2 = socket;
+
+      // Randomize symbols if both prefer same
+      const symbols = assignSymbols(preferredSymbol);
+
+      p1.join(roomId);
+      p2.join(roomId);
+
+      activeRooms.set(roomId, {
+        board: Array(9).fill(null),
+        players: [p1.id, p2.id],
+        symbols,
+        turn: symbols.first.id
       });
-      io.to(socket.id).emit("matchFound", {
-        opponent: { name: opp.name, symbol: opp.symbol },
-        youIndex: youIdx, youSymbol: youSym, bestOf, pot: stake*2
-      });
 
-      startRound(waiting);
+      p1.emit("roomAssigned", { roomId, symbol: symbols.first.symbol });
+      p2.emit("roomAssigned", { roomId, symbol: symbols.second.symbol });
+
+      console.log(`🆚 Room ${roomId} created: ${p1.id} vs ${p2.id}`);
+
+      waitingPlayer = null;
     } else {
-      const sym = symbolPref || (Math.random() < 0.5 ? "X" : "O");
-      rooms.set(socket.id, {
-        id: socket.id, stake, bestOf,
-        full: false,
-        board: Array(9).fill(-1),
-        turn: 0,
-        wins: [0,0],
-        players: [{ id: socket.id, name: socket.data.name, symbol: sym }]
-      });
-      socket.emit("queued", { stake, bestOf, position: 1 });
+      // Wait for opponent
+      waitingPlayer = socket;
+      console.log(`⏳ Waiting player: ${socket.id}`);
     }
   });
 
-  socket.on("place", ({ index }) => {
-    const room = findRoom(socket.id);
-    if (!room || !room.full) return;
-    if (room.board[index] !== -1) return;
-    const turnPlayer = room.players[room.turn];
-    if (turnPlayer.id !== socket.id) return;
+  socket.on("makeMove", ({ index, roomId }) => {
+    const room = activeRooms.get(roomId);
+    if (!room || room.board[index]) return;
 
-    room.board[index] = room.turn;
-    room.players.forEach(p => io.to(p.id).emit("moveApplied", { index, symbolIndex: room.turn }));
+    const currentPlayerId = socket.id;
+    const playerSymbol =
+      currentPlayerId === room.players[0]
+        ? room.symbols.first.symbol
+        : room.symbols.second.symbol;
 
-    if (check(room.board, room.turn)) {
-      room.wins[room.turn]++;
-      const need = Math.floor(room.bestOf/2)+1;
-      room.players.forEach(p => io.to(p.id).emit("roundOver", {
-        roundNumber: room.wins[0]+room.wins[1], winnerIndex: room.turn, wins: room.wins, need
-      }));
-      if (room.wins[room.turn] >= need) {
-        room.players.forEach(p => io.to(p.id).emit("matchOver", {
-          winnerIndex: room.turn, pot: room.stake*2
-        }));
-        rooms.delete(room.id);
-      } else {
-        startRound(room);
-      }
-    } else if (!room.board.includes(-1)) {
-      const need = Math.floor(room.bestOf/2)+1;
-      room.players.forEach(p => io.to(p.id).emit("roundOver", {
-        roundNumber: room.wins[0]+room.wins[1], winnerIndex: "draw", wins: room.wins, need
-      }));
-      startRound(room);
-    } else {
-      room.turn = room.turn ? 0 : 1;
-      room.players.forEach(p => io.to(p.id).emit("turn", { turnIndex: room.turn }));
+    room.board[index] = playerSymbol;
+    room.turn =
+      currentPlayerId === room.players[0]
+        ? room.players[1]
+        : room.players[0];
+
+    io.to(roomId).emit("moveMade", { index, symbol: playerSymbol });
+
+    const result = checkWinner(room.board);
+    if (result) {
+      io.to(roomId).emit("gameOver", { winner: result });
+      console.log(`🏁 Room ${roomId} - Winner: ${result}`);
+      activeRooms.delete(roomId);
+    } else if (!room.board.includes(null)) {
+      io.to(roomId).emit("gameOver", { winner: "draw" });
+      console.log(`🤝 Room ${roomId} - Draw`);
+      activeRooms.delete(roomId);
     }
   });
 
   socket.on("disconnect", () => {
-    const room = findRoom(socket.id);
-    if (room) {
-      room.players.forEach(p => io.to(p.id).emit("errorMsg", { message: "Opponent disconnected." }));
-      rooms.delete(room.id);
+    console.log(`🔴 Player disconnected: ${socket.id}`);
+    if (waitingPlayer && waitingPlayer.id === socket.id) {
+      waitingPlayer = null;
     }
   });
 });
 
-function startRound(room){
-  room.board = Array(9).fill(-1);
-  room.turn = Math.floor(Math.random()*2);
-  room.players.forEach(p => io.to(p.id).emit("roundState", {
-    roundNumber: room.wins[0]+room.wins[1]+1,
-    board: room.board,
-    turnIndex: room.turn
-  }));
+// --- Helper Functions ---
+function assignSymbols(preferredSymbol) {
+  if (preferredSymbol === "O") {
+    return {
+      first: { id: waitingPlayer.id, symbol: "X" },
+      second: { id: null, symbol: "O" }
+    };
+  }
+  return {
+    first: { id: waitingPlayer.id, symbol: "X" },
+    second: { id: null, symbol: "O" }
+  };
 }
-function check(b, s){
-  const L=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-  return L.some(a => a.every(i => b[i]===s));
-}
-function findRoom(id){
-  for (const r of rooms.values()) if (r.players.some(p=>p.id===id)) return r;
+
+function checkWinner(board) {
+  const wins = [
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8],
+    [0, 3, 6],
+    [1, 4, 7],
+    [2, 5, 8],
+    [0, 4, 8],
+    [2, 4, 6]
+  ];
+  for (let line of wins) {
+    const [a, b, c] = line;
+    if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+      return board[a];
+    }
+  }
   return null;
 }
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`✅ TicTac4 Server on :${PORT}`));
+server.listen(PORT, () => {
+  console.log(`✅ TicTac4 Server on :${PORT}`);
+});
