@@ -1,6 +1,15 @@
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Serve privacy.html and other static files
+app.use(express.static(__dirname));
+
 
 const app = express();
 const server = http.createServer(app);
