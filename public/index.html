@@ -10,41 +10,42 @@
     body {
       font-family: Arial, sans-serif;
       text-align: center;
-      background: #0a0a0a;
+      background: #000;
       color: #00ffcc;
       margin: 0;
       padding: 0;
     }
     h1 {
-      margin-top: 30px;
+      margin-top: 40px;
       color: #00e0b0;
-      font-size: 2.5em;
+      font-size: 2.4em;
     }
     #board {
       display: grid;
-      grid-template-columns: repeat(4, 80px);
+      grid-template-columns: repeat(3, 100px);
       gap: 8px;
       justify-content: center;
       margin-top: 40px;
     }
     .cell {
-      width: 80px;
-      height: 80px;
-      background: #1a1a1a;
-      border: 2px solid #00ffcc;
-      font-size: 36px;
-      color: white;
+      width: 100px;
+      height: 100px;
+      background: #111;
+      border: 3px solid #00ffcc;
+      font-size: 48px;
+      color: #fff;
       cursor: pointer;
       display: flex;
       justify-content: center;
       align-items: center;
       transition: 0.2s;
+      border-radius: 10px;
     }
     .cell:hover {
       background: #00ffcc33;
     }
     #status {
-      margin-top: 30px;
+      margin-top: 25px;
       font-size: 20px;
       color: #ccc;
     }
@@ -55,42 +56,50 @@
   <div id="board"></div>
   <p id="status">Connecting...</p>
 
+  <audio id="clickSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_cbe5a3a8f8.mp3?filename=click-124467.mp3"></audio>
+
   <script>
     const socket = io();
     const board = document.getElementById('board');
     const statusText = document.getElementById('status');
+    const clickSound = document.getElementById('clickSound');
+
     let myTurn = false;
     let symbol = null;
-
-    // Create 4x4 board
     const cells = [];
-    for (let i = 0; i < 16; i++) {
+
+    // Create 3x3 board
+    for (let i = 0; i < 9; i++) {
       const cell = document.createElement('div');
       cell.className = 'cell';
       cell.dataset.index = i;
+
       cell.addEventListener('click', () => {
         if (myTurn && !cell.textContent) {
           cell.textContent = symbol;
+          clickSound.play();
           socket.emit('move', { index: i, symbol });
           myTurn = false;
           statusText.textContent = "Opponent's turn...";
         }
       });
+
       board.appendChild(cell);
       cells.push(cell);
     }
 
-    // Randomly assign X or O to first joiner
-    socket.on("connect", () => {
-      symbol = Math.random() > 0.5 ? "X" : "O";
-      myTurn = symbol === "X";
+    // Assign symbol randomly for now (later add room system)
+    socket.on('connect', () => {
+      symbol = Math.random() > 0.5 ? 'X' : 'O';
+      myTurn = symbol === 'X';
       statusText.textContent = myTurn ? "Your turn (X)" : "Opponent's turn (O)";
     });
 
-    // Listen for moves from other players
-    socket.on("move", (data) => {
+    // Receive opponent moves
+    socket.on('move', (data) => {
       const { index, symbol: opponentSymbol } = data;
       cells[index].textContent = opponentSymbol;
+      clickSound.play();
       myTurn = true;
       statusText.textContent = "Your turn...";
     });
