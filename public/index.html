@@ -1,56 +1,115 @@
-git add public/index.html
-git commit -m "Fix click sound playback on mobile"
-git push origin main
-<script>
-  const socket = io();
-  const board = document.getElementById('board');
-  const statusText = document.getElementById('status');
-  const clickSound = document.getElementById('clickSound');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TicTac4 Online Multiplayer</title>
+  <link rel="manifest" href="/manifest.json">
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #000;
+      color: #00ffcc;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      margin-top: 40px;
+      color: #00e0b0;
+      font-size: 2.4em;
+    }
+    #board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      gap: 8px;
+      justify-content: center;
+      margin-top: 40px;
+    }
+    .cell {
+      width: 100px;
+      height: 100px;
+      background: #111;
+      border: 3px solid #00ffcc;
+      font-size: 48px;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: 0.2s;
+      border-radius: 10px;
+    }
+    .cell:hover {
+      background: #00ffcc33;
+    }
+    #status {
+      margin-top: 25px;
+      font-size: 20px;
+      color: #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h1>TicTac4 Online Multiplayer</h1>
+  <div id="board"></div>
+  <p id="status">Connecting...</p>
 
-  let myTurn = false;
-  let symbol = null;
-  const cells = [];
+  <audio id="clickSound" preload="auto">
+    <source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_cbe5a3a8f8.mp3?filename=click-124467.mp3" type="audio/mpeg">
+  </audio>
 
-  // Create 3x3 board
-  for (let i = 0; i < 9; i++) {
-    const cell = document.createElement('div');
-    cell.className = 'cell';
-    cell.dataset.index = i;
+  <script>
+    const socket = io();
+    const board = document.getElementById('board');
+    const statusText = document.getElementById('status');
+    const clickSound = document.getElementById('clickSound');
 
-    cell.addEventListener('click', () => {
-      // Unlock sound after first interaction
-      if (clickSound.paused) {
-        clickSound.play().catch(() => {});
-        clickSound.pause();
-        clickSound.currentTime = 0;
-      }
+    let myTurn = false;
+    let symbol = null;
+    const cells = [];
 
-      if (myTurn && !cell.textContent) {
-        cell.textContent = symbol;
-        clickSound.play();
-        socket.emit('move', { index: i, symbol });
-        myTurn = false;
-        statusText.textContent = "Opponent's turn...";
-      }
+    // Unlock sound after user interaction
+    document.body.addEventListener('click', () => {
+      clickSound.play().then(() => clickSound.pause());
+    }, { once: true });
+
+    // Create 3x3 board
+    for (let i = 0; i < 9; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.index = i;
+
+      cell.addEventListener('click', () => {
+        if (myTurn && !cell.textContent) {
+          cell.textContent = symbol;
+          clickSound.play();
+          socket.emit('move', { index: i, symbol });
+          myTurn = false;
+          statusText.textContent = "Opponent's turn...";
+        }
+      });
+
+      board.appendChild(cell);
+      cells.push(cell);
+    }
+
+    // Auto assign symbol
+    socket.on('connect', () => {
+      symbol = Math.random() > 0.5 ? 'X' : 'O';
+      myTurn = symbol === 'X';
+      statusText.textContent = myTurn ? "Your turn (X)" : "Opponent's turn (O)";
     });
 
-    board.appendChild(cell);
-    cells.push(cell);
-  }
-
-  // Assign symbol randomly for now (temporary)
-  socket.on('connect', () => {
-    symbol = Math.random() > 0.5 ? 'X' : 'O';
-    myTurn = symbol === 'X';
-    statusText.textContent = myTurn ? "Your turn (X)" : "Opponent's turn (O)";
-  });
-
-  // Receive opponent moves
-  socket.on('move', (data) => {
-    const { index, symbol: opponentSymbol } = data;
-    cells[index].textContent = opponentSymbol;
-    clickSound.play();
-    myTurn = true;
-    statusText.textContent = "Your turn...";
-  });
-</script>
+    // Opponent move
+    socket.on('move', (data) => {
+      const { index, symbol: opponentSymbol } = data;
+      cells[index].textContent = opponentSymbol;
+      clickSound.play();
+      myTurn = true;
+      statusText.textContent = "Your turn...";
+    });
+  </script>
+</body>
+</html>
