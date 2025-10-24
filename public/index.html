@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TicTac4 Online Multiplayer</title>
   <link rel="manifest" href="/manifest.json">
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -52,32 +53,47 @@
 <body>
   <h1>TicTac4 Online Multiplayer</h1>
   <div id="board"></div>
-  <p id="status">Waiting for player move...</p>
+  <p id="status">Connecting...</p>
 
   <script>
+    const socket = io();
     const board = document.getElementById('board');
     const statusText = document.getElementById('status');
-    let currentPlayer = 'X';
-    const cells = [];
+    let myTurn = false;
+    let symbol = null;
 
     // Create 4x4 board
+    const cells = [];
     for (let i = 0; i < 16; i++) {
       const cell = document.createElement('div');
       cell.className = 'cell';
+      cell.dataset.index = i;
       cell.addEventListener('click', () => {
-        if (!cell.textContent) {
-          cell.textContent = currentPlayer;
-          currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-          statusText.textContent = `Player ${currentPlayer}'s turn`;
+        if (myTurn && !cell.textContent) {
+          cell.textContent = symbol;
+          socket.emit('move', { index: i, symbol });
+          myTurn = false;
+          statusText.textContent = "Opponent's turn...";
         }
       });
       board.appendChild(cell);
       cells.push(cell);
     }
 
-    // Placeholder for multiplayer connection
-    // Later you can connect with multiplayer.js WebSocket here
-    console.log('TicTac4 loaded successfully');
+    // Randomly assign X or O to first joiner
+    socket.on("connect", () => {
+      symbol = Math.random() > 0.5 ? "X" : "O";
+      myTurn = symbol === "X";
+      statusText.textContent = myTurn ? "Your turn (X)" : "Opponent's turn (O)";
+    });
+
+    // Listen for moves from other players
+    socket.on("move", (data) => {
+      const { index, symbol: opponentSymbol } = data;
+      cells[index].textContent = opponentSymbol;
+      myTurn = true;
+      statusText.textContent = "Your turn...";
+    });
   </script>
 </body>
 </html>
