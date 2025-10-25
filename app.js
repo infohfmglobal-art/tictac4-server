@@ -1,0 +1,1 @@
+console.log('TicTac4 client ready. Connect your Socket.IO backend.');
