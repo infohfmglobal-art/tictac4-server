@@ -1,0 +1,28 @@
+{
+  "name": "TicTac4 Online Multiplayer",
+  "short_name": "TicTac4",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a1a1a",
+  "theme_color": "#d4af37",
+  "description": "Play TicTac4 — the modern multiplayer twist on the classic Tic Tac Toe with smart design and real-time challenge.",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-mono.png",
+      "sizes": "48x48",
+      "purpose": "monochrome",
+      "type": "image/png"
+    }
+  ]
+}
