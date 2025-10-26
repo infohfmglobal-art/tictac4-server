@@ -1,81 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
-  />
-  <title>TicTac4 — Online Multiplayer</title>
-  <link rel="manifest" href="/manifest.json" />
-  <link rel="stylesheet" href="/style.css" />
-  <!-- Socket.IO (served by your Render server) -->
-  <script src="/socket.io/socket.io.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TicTac4 – Online Multiplayer</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body>
-  <!-- BACKDROP -->
-  <div class="bg"></div>
-
-  <!-- TOP HUD -->
-  <header class="hud glass">
-    <div class="hud-left">
-      <div class="logo">TicTac4</div>
-      <div id="status" class="status">Connecting…</div>
-    </div>
-    <div class="hud-right">
-      <div class="pill you">You: <span id="youSym">?</span></div>
-      <div class="pill turn" id="turnPill">Waiting…</div>
-    </div>
-  </header>
-
-  <!-- CENTER CARD -->
-  <main class="card glass">
-    <h1 class="title">Online Match</h1>
-
-    <!-- MATCHMAKING PANEL -->
-    <section id="mmPanel" class="mm-panel">
-      <div class="mm-row">
-        <label>Name</label>
-        <input id="nameInput" placeholder="Guest" maxlength="18" />
-      </div>
-
-      <div class="mm-row">
-        <label>Server</label>
-        <input id="serverInput" placeholder="https://tictac4-server.onrender.com" />
-      </div>
-
-      <div class="mm-row cols">
-        <button id="btnCpu" class="btn outline">Play CPU</button>
-        <button id="btnOnline" class="btn gold">Play Online</button>
-      </div>
-
-      <div id="wakeMsg" class="wake hidden">⏳ Server waking up…</div>
-    </section>
-
-    <!-- BOARD -->
-    <section id="boardWrap" class="board-wrap hidden">
-      <div id="board" class="board">
-        <!-- 9 cells inserted by JS -->
-      </div>
-      <div class="controls">
-        <button id="btnReset" class="btn outline small">Reset</button>
-      </div>
-    </section>
-  </main>
-
-  <!-- RESULT OVERLAY -->
-  <div id="overlay" class="overlay hidden">
-    <div class="overlay-panel glass glow">
-      <div id="overlayTitle" class="overlay-title">Result</div>
-      <div id="overlaySub" class="overlay-sub">—</div>
-      <div class="overlay-actions">
-        <button id="btnAgain" class="btn gold">Play Again</button>
-        <button id="btnExit" class="btn outline">Exit</button>
-      </div>
-    </div>
+  <div class="container">
+    <h1 class="title">TicTac4</h1>
+    <div id="board" class="board"></div>
+    <p id="status" class="status">Connecting...</p>
   </div>
 
-  <!-- Procedural Audio: created and unlocked on first user gesture -->
-  <script defer src="/app.js"></script>
+  <audio id="clickSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_cbe5a3a8f8.mp3?filename=click-124467.mp3"></audio>
+
+  <script src="app.js"></script>
 </body>
 </html>
