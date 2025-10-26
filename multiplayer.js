@@ -1,80 +1,59 @@
-// multiplayer.js
-// TicTac4 Online Multiplayer (Render-ready)
-// Uses your live backend: https://tictac4-server.onrender.com
-
-import { io } from "https://cdn.socket.io/4.7.5/socket.io.esm.min.js";
-
-const SERVER_URL = "https://tictac4-server.onrender.com";
+import { io } from "https://cdn.socket.io/4.7.2/socket.io.esm.min.js";
 
 export class MultiplayerManager {
-  constructor({ onMatchStart, onOpponentMove, onMatchOver, onStatus, onLogOutcome }) {
+  constructor(serverUrl, onMoveReceived, onGameStart) {
+    this.serverUrl = serverUrl;
+    this.onMoveReceived = onMoveReceived;
+    this.onGameStart = onGameStart;
     this.socket = null;
-    this.roomId = null;
     this.symbol = null;
-    this.connected = false;
-
-    this.onMatchStart = onMatchStart;     // (symbol) => void
-    this.onOpponentMove = onOpponentMove; // (index, symbol) => void
-    this.onMatchOver = onMatchOver;       // (resultObj) => void
-    this.onStatus = onStatus;             // (text) => void
-    this.onLogOutcome = onLogOutcome;     // (roomId, result, winner) => void
-
-    this.connect();
+    this.room = null;
   }
 
   connect() {
-    this.socket = io(SERVER_URL, { transports: ["websocket"] });
+    this.socket = io(this.serverUrl, {
+      transports: ["websocket"],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1500,
+    });
 
     this.socket.on("connect", () => {
-      this.connected = true;
-      this._status(`Connected to server`);
+      console.log("✅ Connected to multiplayer server:", this.serverUrl);
+      this.socket.emit("joinAutoRoom");
+    });
+
+    this.socket.on("assignSymbol", (symbol) => {
+      this.symbol = symbol;
+      console.log("🎮 You are:", symbol);
+      if (this.onGameStart) this.onGameStart(symbol);
+    });
+
+    this.socket.on("move", (data) => {
+      console.log("📩 Opponent move received:", data);
+      if (this.onMoveReceived) this.onMoveReceived(data);
+    });
+
+    this.socket.on("roomJoined", (room) => {
+      this.room = room;
+      console.log("🏠 Joined room:", room);
     });
 
     this.socket.on("disconnect", () => {
-      this.connected = false;
-      this._status(`Disconnected`);
+      console.warn("⚠️ Disconnected from server. Trying to reconnect...");
     });
 
-    // Assigned to a room and symbol
-    this.socket.on("roomAssigned", ({ roomId, symbol }) => {
-      this.roomId = roomId;
-      this.symbol = symbol;
-      this._status(`Match found. You are ${symbol}.`);
-      if (this.onMatchStart) this.onMatchStart(symbol);
-    });
-
-    // Opponent move arrived
-    this.socket.on("moveMade", ({ index, symbol }) => {
-      if (this.onOpponentMove) this.onOpponentMove(index, symbol);
-    });
-
-    // Match completed (win/draw)
-    this.socket.on("gameOver", (payload) => {
-      // payload: { winner: "X" | "O" | "draw" }
-      if (this.onLogOutcome) {
-        const result = payload.winner === "draw" ? "draw" : "win";
-        const winner = payload.winner === "draw" ? null : payload.winner;
-        this.onLogOutcome(this.roomId, result, winner);
-      }
-      if (this.onMatchOver) this.onMatchOver(payload);
+    this.socket.on("connect_error", (err) => {
+      console.error("❌ Connection error:", err.message);
     });
   }
 
-  joinMatch(preferredSymbol = "X") {
-    if (!this.connected) {
-      this._status("Connecting...");
+  sendMove(index, symbol) {
+    if (!this.socket) {
+      console.error("Socket not connected.");
+      return;
     }
-    this._status("Waiting for opponent…");
-    this.socket.emit("joinMatch", { preferredSymbol });
-  }
-
-  makeMove(index) {
-    if (!this.roomId) return;
-    this.socket.emit("makeMove", { index, roomId: this.roomId });
-  }
-
-  _status(text) {
-    if (this.onStatus) this.onStatus(text);
-    console.log(`🌍 [MP]: ${text}`);
+    console.log("📤 Sending move:", index, symbol);
+    this.socket.emit("move", { index, symbol });
   }
 }
