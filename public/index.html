@@ -8,13 +8,15 @@
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body>
-  <div class="container">
-    <h1 class="title">TicTac4</h1>
+  <div class="game-container">
+    <h1 class="game-title">TicTac4</h1>
+    <div id="status" class="status">Connecting...</div>
     <div id="board" class="board"></div>
-    <p id="status" class="status">Connecting...</p>
+    <button id="restart" class="btn">Restart</button>
   </div>
 
   <audio id="clickSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_cbe5a3a8f8.mp3?filename=click-124467.mp3"></audio>
+  <audio id="winSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_53436f24f4.mp3?filename=game-win-sound-201527.mp3"></audio>
 
   <script src="app.js"></script>
 </body>
