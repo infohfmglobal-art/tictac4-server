@@ -1,3 +1,4 @@
+/* === Base Layout === */
 body {
   background: radial-gradient(circle at center, #000000, #020202);
   color: #00fff2;
@@ -7,8 +8,10 @@ body {
   justify-content: center;
   align-items: center;
   overflow: hidden;
+  animation: fadeIn 1.5s ease-out forwards;
 }
 
+/* === Main Game Container === */
 .game-container {
   background: rgba(255, 255, 255, 0.05);
   border: 2px solid rgba(0, 255, 255, 0.5);
@@ -20,13 +23,95 @@ body {
   border-radius: 25px;
   backdrop-filter: blur(12px);
   text-align: center;
+  animation: fadeIn 1.5s ease-out forwards;
 }
+
+/* === Title Styling === */
+.game-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  animation: shimmer 3s infinite ease-in-out, pulse 2s infinite;
+  margin-bottom: 20px;
+}
+
+/* === Board Styling === */
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, 100px);
+  grid-gap: 12px;
+  justify-content: center;
+  margin: 20px auto;
+}
+
+.cell {
+  width: 100px;
+  height: 100px;
+  font-size: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 15px;
+  cursor: pointer;
+  color: #00fff2;
+  transition: transform 0.15s ease, box-shadow 0.3s ease;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+.cell:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 25px rgba(0, 255, 255, 0.6);
+}
+
+/* === Restart Button === */
+button {
+  background: linear-gradient(90deg, #00fff2, #80fff2);
+  border: none;
+  color: #000;
+  padding: 12px 25px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+}
+
+button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 15px #00fff2;
+}
+
+/* === Status Text === */
+.status {
+  margin-top: 20px;
+  font-size: 1.1rem;
+  text-shadow: 0 0 8px rgba(0, 255, 255, 0.7);
+}
+
+/* === Animations === */
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 @keyframes pulse {
   0% { box-shadow: 0 0 15px rgba(0,255,255,0.2); }
   50% { box-shadow: 0 0 35px rgba(0,255,255,0.6); }
   100% { box-shadow: 0 0 15px rgba(0,255,255,0.2); }
 }
 
-.game-title {
-  animation: pulse 2s infinite;
+@keyframes shimmer {
+  0% { text-shadow: 0 0 10px #00fff2, 0 0 20px #00fff2; }
+  50% { text-shadow: 0 0 25px #80fff2, 0 0 40px #00fff2; }
+  100% { text-shadow: 0 0 10px #00fff2, 0 0 20px #00fff2; }
+}
+
+/* === Winner Burst Effect === */
+@keyframes winBurst {
+  0% { box-shadow: 0 0 0px rgba(255, 215, 0, 0.0); }
+  50% { box-shadow: 0 0 40px rgba(255, 215, 0, 0.8); }
+  100% { box-shadow: 0 0 0px rgba(255, 215, 0, 0.0); }
+}
+
+.win-burst {
+  animation: winBurst 1.2s ease-out;
 }
