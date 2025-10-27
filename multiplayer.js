@@ -1,90 +1,60 @@
 import io from "https://cdn.socket.io/4.7.2/socket.io.esm.min.js";
 
 export class Multiplayer {
-  constructor() {
-    this.serverUrl = "https://tictac4-server-2z7d.onrender.com"; // ✅ Your live backend URL
+  constructor(game) {
+    this.game = game;
+    this.socket = null;
+    this.connected = false;
+    this.serverUrl = "https://tictac4-server-2z7d.onrender.com"; // ✅ your live Render URL
+  }
+
+  connect() {
     this.socket = io(this.serverUrl, {
       transports: ["websocket"],
       reconnection: true,
       reconnectionAttempts: 5,
-      reconnectionDelay: 5000,
+      reconnectionDelay: 2000,
     });
 
-    this.board = null;
-    this.status = null;
-    this.currentPlayer = null;
-    this.gameId = null;
-
-    this.#setupEvents();
-  }
-
-  #setupEvents() {
-    // Connection success
     this.socket.on("connect", () => {
       console.log("✅ Connected to multiplayer server");
-      this.status.innerText = "Connected — waiting for opponent...";
-      this.socket.emit("joinGame");
+      this.connected = true;
+      this.game.showStatus("Connected — Waiting for opponent…");
     });
 
-    // Connection error
-    this.socket.on("connect_error", (err) => {
-      console.error("❌ Connection error:", err.message);
-      this.status.innerText = "Connection error — retrying...";
+    this.socket.on("disconnect", () => {
+      console.log("⚠️ Disconnected from server");
+      this.connected = false;
+      this.game.showStatus("Connection lost — Reconnecting…");
     });
 
-    // Opponent joined
     this.socket.on("matchFound", (data) => {
       console.log("🎮 Match found:", data);
-      this.gameId = data.gameId;
-      this.currentPlayer = data.symbol;
-      this.status.innerText = `Game started! You are "${this.currentPlayer}"`;
+      this.symbol = data.symbol;
+      this.game.startMultiplayer(data.symbol);
+      this.game.showStatus("Opponent found — Your symbol: " + data.symbol);
     });
 
-    // Board update
     this.socket.on("updateBoard", (data) => {
-      const { board, turn } = data;
-      this.board = board;
-      this.#renderBoard();
-      this.status.innerText = `Your turn: ${turn}`;
+      this.game.updateBoard(data.board, data.turn);
     });
 
-    // Game result
-    this.socket.on("gameOver", (data) => {
-      const { winner } = data;
-      if (winner === "draw") {
-        this.status.innerText = "It's a draw!";
-      } else {
-        this.status.innerText = `${winner} wins!`;
-      }
+    this.socket.on("gameOver", ({ winner }) => {
+      this.game.endGame(winner);
     });
 
-    // Opponent disconnected
     this.socket.on("opponentLeft", () => {
-      this.status.innerText = "Opponent left the game.";
+      this.game.showStatus("Opponent left the game 💤");
     });
   }
 
-  makeMove(index) {
-    if (this.gameId && this.currentPlayer) {
+  sendMove(index, symbol) {
+    if (this.socket && this.connected) {
       this.socket.emit("playerMove", {
-        gameId: this.gameId,
-        index: index,
-        symbol: this.currentPlayer,
+        gameId: this.game.currentGameId,
+        index,
+        symbol,
       });
     }
-  }
-
-  #renderBoard() {
-    const boardElement = document.getElementById("board");
-    if (!boardElement || !this.board) return;
-
-    boardElement.innerHTML = "";
-    this.board.forEach((cell, i) => {
-      const btn = document.createElement("button");
-      btn.className = "cell";
-      btn.innerText = cell || "";
-      btn.onclick = () => this.makeMove(i);
-      boardElement.appendChild(btn);
-    });
   }
 }
