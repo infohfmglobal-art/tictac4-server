@@ -1,59 +1,90 @@
-import { io } from "https://cdn.socket.io/4.7.2/socket.io.esm.min.js";
+import io from "https://cdn.socket.io/4.7.2/socket.io.esm.min.js";
 
-export class MultiplayerManager {
-  constructor(serverUrl, onMoveReceived, onGameStart) {
-    this.serverUrl = serverUrl;
-    this.onMoveReceived = onMoveReceived;
-    this.onGameStart = onGameStart;
-    this.socket = null;
-    this.symbol = null;
-    this.room = null;
+export class Multiplayer {
+  constructor() {
+    this.serverUrl = "https://tictac4-server-27d.onrender.com"; // ✅ Your live Render server
+    this.socket = io(this.serverUrl, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+    });
+
+    this.board = null;
+    this.status = null;
+    this.currentPlayer = null;
+    this.gameId = null;
+
+    this.#setupEvents();
   }
 
-  connect() {
-    this.socket = io(this.serverUrl, {
-      transports: ["websocket"],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1500,
-    });
-
+  #setupEvents() {
+    // Connection success
     this.socket.on("connect", () => {
-      console.log("✅ Connected to multiplayer server:", this.serverUrl);
-      this.socket.emit("joinAutoRoom");
+      console.log("✅ Connected to multiplayer server");
+      this.status.innerText = "Connected — waiting for opponent...";
+      this.socket.emit("joinGame");
     });
 
-    this.socket.on("assignSymbol", (symbol) => {
-      this.symbol = symbol;
-      console.log("🎮 You are:", symbol);
-      if (this.onGameStart) this.onGameStart(symbol);
-    });
-
-    this.socket.on("move", (data) => {
-      console.log("📩 Opponent move received:", data);
-      if (this.onMoveReceived) this.onMoveReceived(data);
-    });
-
-    this.socket.on("roomJoined", (room) => {
-      this.room = room;
-      console.log("🏠 Joined room:", room);
-    });
-
-    this.socket.on("disconnect", () => {
-      console.warn("⚠️ Disconnected from server. Trying to reconnect...");
-    });
-
+    // Connection error
     this.socket.on("connect_error", (err) => {
       console.error("❌ Connection error:", err.message);
+      this.status.innerText = "Connection error — retrying...";
+    });
+
+    // Opponent joined
+    this.socket.on("matchFound", (data) => {
+      console.log("🎮 Match found:", data);
+      this.gameId = data.gameId;
+      this.currentPlayer = data.symbol;
+      this.status.innerText = `Game started! You are "${this.currentPlayer}"`;
+    });
+
+    // Board update
+    this.socket.on("updateBoard", (data) => {
+      const { board, turn } = data;
+      this.board = board;
+      this.#renderBoard();
+      this.status.innerText = `Your turn: ${turn}`;
+    });
+
+    // Game result
+    this.socket.on("gameOver", (data) => {
+      const { winner } = data;
+      if (winner === "draw") {
+        this.status.innerText = "It's a draw!";
+      } else {
+        this.status.innerText = `${winner} wins!`;
+      }
+    });
+
+    // Opponent disconnected
+    this.socket.on("opponentLeft", () => {
+      this.status.innerText = "Opponent left the game.";
     });
   }
 
-  sendMove(index, symbol) {
-    if (!this.socket) {
-      console.error("Socket not connected.");
-      return;
+  makeMove(index) {
+    if (this.gameId && this.currentPlayer) {
+      this.socket.emit("playerMove", {
+        gameId: this.gameId,
+        index: index,
+        symbol: this.currentPlayer,
+      });
     }
-    console.log("📤 Sending move:", index, symbol);
-    this.socket.emit("move", { index, symbol });
+  }
+
+  #renderBoard() {
+    const boardElement = document.getElementById("board");
+    if (!boardElement || !this.board) return;
+
+    boardElement.innerHTML = "";
+    this.board.forEach((cell, i) => {
+      const btn = document.createElement("button");
+      btn.className = "cell";
+      btn.innerText = cell || "";
+      btn.onclick = () => this.makeMove(i);
+      boardElement.appendChild(btn);
+    });
   }
 }
