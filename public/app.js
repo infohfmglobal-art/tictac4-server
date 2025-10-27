@@ -1,56 +1,75 @@
-body {
-  margin: 0;
-  font-family: 'Poppins', sans-serif;
-  background: radial-gradient(circle at top, #1a1a1a, #000);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  color: #ffd700;
+const SERVER_URL = "https://tictac4-server.onrender.com"; // Render backend
+const socket = io(SERVER_URL, { transports: ["websocket"] });
+
+const board = document.getElementById("board");
+const status = document.getElementById("status");
+const restartBtn = document.getElementById("restart");
+const clickSound = document.getElementById("clickSound");
+const winSound = document.getElementById("winSound");
+
+let cells = [];
+let currentPlayer = "X";
+let gameOver = false;
+
+// Build the board
+for (let i = 0; i < 9; i++) {
+  const cell = document.createElement("div");
+  cell.classList.add("cell");
+  cell.addEventListener("click", () => handleClick(i));
+  board.appendChild(cell);
+  cells.push(cell);
 }
 
-.container {
-  text-align: center;
+restartBtn.addEventListener("click", resetGame);
+
+function handleClick(i) {
+  if (gameOver || cells[i].textContent !== "") return;
+  cells[i].textContent = currentPlayer;
+  clickSound.play();
+
+  if (checkWinner()) {
+    status.textContent = `${currentPlayer} Wins!`;
+    winSound.play();
+    gameOver = true;
+    setTimeout(resetGame, 2000);
+    return;
+  }
+
+  if (cells.every(c => c.textContent !== "")) {
+    status.textContent = "Draw!";
+    setTimeout(resetGame, 2000);
+    return;
+  }
+
+  currentPlayer = currentPlayer === "X" ? "O" : "X";
+  status.textContent = `${currentPlayer}'s Turn`;
 }
 
-.title {
-  font-size: 2.5em;
-  color: #ffd700;
-  text-shadow: 0 0 20px #ffbf00;
-  margin-bottom: 30px;
+// Reset game
+function resetGame() {
+  cells.forEach(cell => cell.textContent = "");
+  currentPlayer = "X";
+  gameOver = false;
+  status.textContent = "New Game!";
 }
 
-.board {
-  display: grid;
-  grid-template-columns: repeat(3, 100px);
-  gap: 10px;
-  justify-content: center;
+// Winner logic
+function checkWinner() {
+  const combos = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6]
+  ];
+  return combos.some(([a, b, c]) => {
+    return (
+      cells[a].textContent &&
+      cells[a].textContent === cells[b].textContent &&
+      cells[a].textContent === cells[c].textContent
+    );
+  });
 }
 
-.cell {
-  width: 100px;
-  height: 100px;
-  background: rgba(255, 215, 0, 0.1);
-  border: 2px solid #ffd700;
-  border-radius: 15px;
-  font-size: 2.5em;
-  color: #fff;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  transition: all 0.25s ease-in-out;
-}
-
-.cell:hover {
-  background: rgba(255, 215, 0, 0.3);
-  transform: scale(1.05);
-}
-
-.status {
-  margin-top: 20px;
-  font-size: 1.2em;
-  color: #fff;
-  text-shadow: 0 0 5px #ffd700;
-}
+// Multiplayer placeholder (to sync later)
+socket.on("connect", () => {
+  status.textContent = "Connected!";
+});
