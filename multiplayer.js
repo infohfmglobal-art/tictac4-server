@@ -2,12 +2,12 @@ import io from "https://cdn.socket.io/4.7.2/socket.io.esm.min.js";
 
 export class Multiplayer {
   constructor() {
-    this.serverUrl = "https://tictac4-server-27d.onrender.com"; // ✅ Your live Render server
+    this.serverUrl = "https://tictac4-server-2z7d.onrender.com"; // ✅ Your live backend URL
     this.socket = io(this.serverUrl, {
-      transports: ["websocket", "polling"],
+      transports: ["websocket"],
       reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 5000,
     });
 
     this.board = null;
